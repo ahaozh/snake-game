@@ -206,11 +206,13 @@
             animation: spin 2s infinite linear, float 3s infinite ease-in-out;
         }
         
-        /* Boss样式 */
+        /* Boss样式 - 修复：不会污染棋盘 */
         .boss {
-            background: radial-gradient(circle, #ff0000, #880000);
-            border-radius: 20%;
-            box-shadow: 0 0 30px #ff0000;
+            background: radial-gradient(circle at center, var(--boss-color, #ff0000), #880000);
+            border-radius: 40%;
+            box-shadow: 
+                0 0 20px var(--boss-color, #ff0000),
+                inset 0 0 10px rgba(255, 255, 255, 0.3);
             animation: boss-pulse 1.5s infinite alternate;
             z-index: 4;
             position: relative;
@@ -220,22 +222,27 @@
             font-size: 10px;
             color: white;
             font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.5);
         }
         
         .boss::after {
             content: '👑';
             position: absolute;
-            top: -6px;
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%);
             font-size: 12px;
+            z-index: 5;
         }
         
         /* 子弹样式 */
         .boss-bullet {
-            background: radial-gradient(circle, #ff3300, #ff0000);
+            background: radial-gradient(circle, var(--bullet-color, #ff3300), #ff0000);
             border-radius: 50%;
-            box-shadow: 0 0 15px #ff3300;
+            box-shadow: 0 0 15px var(--bullet-color, #ff3300);
             animation: bullet-pulse 0.5s infinite alternate;
             z-index: 3;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         /* 动画效果 */
@@ -252,11 +259,11 @@
         @keyframes boss-pulse {
             from { 
                 transform: scale(0.95); 
-                box-shadow: 0 0 20px #ff0000;
+                box-shadow: 0 0 20px var(--boss-color, #ff0000);
             }
             to { 
                 transform: scale(1.05); 
-                box-shadow: 0 0 40px #ff0000;
+                box-shadow: 0 0 40px var(--boss-color, #ff0000);
             }
         }
         
@@ -267,7 +274,7 @@
         
         /* ========== 移动端方向控制键 ========== */
         .mobile-controls {
-            display: none; /* 默认隐藏，手机端显示 */
+            display: none;
             margin-top: 30px;
             position: relative;
             width: 100%;
@@ -440,6 +447,27 @@
             font-size: 1.2rem;
         }
         
+        /* Boss自动出现倒计时 */
+        .boss-timer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 71, 87, 0.2);
+            border: 2px solid #ff4757;
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            color: #ff6b6b;
+            font-weight: bold;
+            display: none;
+            z-index: 10;
+        }
+        
+        .boss-timer span {
+            color: #ffcc00;
+            font-size: 1.1rem;
+        }
+        
         /* 消息系统 */
         .message-container {
             position: fixed;
@@ -503,99 +531,16 @@
             font-size: 2.5rem;
             margin-bottom: 20px;
         }
-        
-        /* 响应式调整 */
-        @media (max-width: 480px) {
-            .game-board {
-                grid-template-columns: repeat(15, 1fr);
-                grid-template-rows: repeat(12, 1fr);
-                height: min(80vw, 360px);
-            }
-            
-            .dpad-container {
-                width: 240px;
-                height: 240px;
-            }
-            
-            .dpad-direction {
-                width: 75px;
-                height: 75px;
-                font-size: 28px;
-            }
-            
-            .dpad-center {
-                width: 70px;
-                height: 70px;
-            }
-            
-            .action-btn {
-                width: 60px;
-                height: 60px;
-            }
-            
-            .control-buttons {
-                grid-template-columns: 1fr;
-            }
-            
-            select {
-                grid-column: span 1;
-            }
-            
-            .stat-value {
-                font-size: 1.3rem;
-            }
-        }
-        
-        /* 平板优化 */
-        @media (min-width: 481px) and (max-width: 768px) {
-            .game-board {
-                grid-template-columns: repeat(18, 1fr);
-                grid-template-rows: repeat(14, 1fr);
-            }
-        }
-        
-        /* 横屏模式优化 */
-        @media (orientation: landscape) and (max-height: 600px) {
-            .game-header {
-                grid-template-columns: 1fr 1fr;
-                margin-bottom: 10px;
-            }
-            
-            .game-board {
-                width: min(70vh, 500px);
-                height: min(50vh, 350px);
-            }
-            
-            .mobile-controls {
-                margin-top: 20px;
-            }
-            
-            .dpad-container {
-                width: 200px;
-                height: 200px;
-            }
-            
-            .dpad-direction {
-                width: 70px;
-                height: 70px;
-                font-size: 24px;
-            }
-        }
-        
-        /* 防止点击时缩放 */
-        html {
-            -webkit-text-size-adjust: 100%;
-        }
-        
-        /* 防止双击缩放 */
-        * {
-            touch-action: manipulation;
-        }
     </style>
 </head>
 <body>
     <div class="game-container">
         <h1>🐍 贪吃蛇大冒险</h1>
+        
+        <!-- Boss自动出现倒计时 -->
+        <div class="boss-timer" id="boss-timer">
+            Boss出现: <span id="boss-countdown">--</span>秒
+        </div>
         
         <!-- 游戏头部信息 -->
         <div class="game-header">
@@ -667,7 +612,7 @@
             </div>
             
             <div class="mobile-hint">
-                📱 触摸方向键控制移动，长按加速
+                📱 触摸方向键控制移动
             </div>
             
             <!-- 额外操作按钮 -->
@@ -690,22 +635,17 @@
                     <li><strong>空格键/暂停按钮</strong>：暂停/继续游戏</li>
                     <li><strong>靠近Boss</strong>：自动攻击Boss</li>
                     <li><strong>召唤Boss按钮</strong>：手动召唤Boss战斗</li>
-                    <li><strong>攻击按钮</strong>：手机端快速攻击</li>
                     <li><strong>连击系统</strong>：连续吃食物增加分数倍数</li>
                 </ul>
             </div>
             
             <div class="info-panel">
-                <h3>🎯 Boss介绍</h3>
-                <div class="boss-info" style="margin-top: 10px;">
-                    <div style="margin-bottom: 10px; padding: 8px; background: rgba(255, 71, 87, 0.1); border-radius: 6px; border-left: 4px solid #ff4757;">
-                        <h4 style="color: #ff6b6b; margin-bottom: 5px;">🔥 火焰领主</h4>
-                        <p style="font-size: 0.9rem; color: #aaa;">发射火焰子弹，击败奖励300分</p>
-                    </div>
-                    <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 204, 255, 0.1); border-radius: 6px; border-left: 4px solid #00ccff;">
-                        <h4 style="color: #00ccff; margin-bottom: 5px;">❄️ 寒冰女王</h4>
-                        <p style="font-size: 0.9rem; color: #aaa;">减慢玩家速度，击败奖励400分</p>
-                    </div>
+                <h3>🎯 Boss系统</h3>
+                <div style="margin-top: 10px;">
+                    <p style="margin-bottom: 10px; color: #4dff91;">✓ Boss会<strong>自动出现</strong>（每45秒）</p>
+                    <p style="margin-bottom: 10px; color: #ffcc00;">✓ 点击按钮可<strong>手动召唤</strong></p>
+                    <p style="margin-bottom: 10px; color: #00ccff;">✓ 右上角显示<strong>出现倒计时</strong></p>
+                    <p style="margin-bottom: 10px; color: #ff6bff;">✓ 击败Boss获得<strong>大量分数</strong></p>
                 </div>
             </div>
         </div>
@@ -738,6 +678,13 @@
                 easy: 180,
                 normal: 140,
                 hard: 100
+            },
+            // Boss自动出现配置
+            BOSS_AUTO_SPAWN: {
+                initialDelay: 30000,    // 初始延迟30秒
+                interval: 45000,        // 每45秒一次
+                minScore: 50,           // 最低分数要求
+                chance: 0.6             // 60%几率出现
             }
         };
 
@@ -745,8 +692,8 @@
         const BOSS_TYPES = {
             firelord: {
                 name: "🔥 火焰领主",
-                health: 150,
-                damage: 20,
+                health: 120,
+                damage: 15,
                 speed: 1,
                 color: "#ff3300",
                 reward: 300,
@@ -754,8 +701,8 @@
             },
             icequeen: {
                 name: "❄️ 寒冰女王",
-                health: 200,
-                damage: 15,
+                health: 150,
+                damage: 12,
                 speed: 0.8,
                 color: "#00ccff",
                 reward: 400,
@@ -791,9 +738,10 @@
             gameInterval: null,
             inputCode: '',
             
-            // 移动端触摸状态
-            touchStartTime: 0,
-            touchDirection: null
+            // Boss自动出现
+            nextBossSpawnTime: 0,
+            bossSpawnTimer: null,
+            lastBossCheck: 0
         };
 
         // ========== DOM元素 ==========
@@ -823,7 +771,9 @@
                 bossDefeated: document.getElementById('boss-defeated'),
                 finalCombo: document.getElementById('final-combo'),
                 difficulty: document.getElementById('difficulty'),
-                messageContainer: document.getElementById('message-container')
+                messageContainer: document.getElementById('message-container'),
+                bossTimer: document.getElementById('boss-timer'),
+                bossCountdown: document.getElementById('boss-countdown')
             };
             
             if (!elements.board) {
@@ -876,9 +826,6 @@
             // 键盘控制
             document.addEventListener('keydown', handleKeyDown);
             
-            // 防止页面滚动
-            document.addEventListener('touchmove', preventScroll, { passive: false });
-            
             console.log("事件监听器设置完成");
         }
 
@@ -888,27 +835,11 @@
             directions.forEach(dir => {
                 const btn = document.getElementById(`mobile-${dir}`);
                 if (btn) {
-                    // 触摸开始
                     btn.addEventListener('touchstart', (e) => {
                         e.preventDefault();
-                        game.touchStartTime = Date.now();
-                        game.touchDirection = dir;
                         handleMobileDirection(dir);
                     });
                     
-                    // 触摸结束
-                    btn.addEventListener('touchend', (e) => {
-                        e.preventDefault();
-                        game.touchDirection = null;
-                    });
-                    
-                    // 防止默认行为
-                    btn.addEventListener('touchcancel', (e) => {
-                        e.preventDefault();
-                        game.touchDirection = null;
-                    });
-                    
-                    // 点击事件备用
                     btn.addEventListener('click', () => {
                         handleMobileDirection(dir);
                     });
@@ -919,10 +850,6 @@
             const mobilePauseBtn = document.getElementById('mobile-pause');
             if (mobilePauseBtn) {
                 mobilePauseBtn.addEventListener('click', togglePause);
-                mobilePauseBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    togglePause();
-                });
             }
             
             // 手机攻击按钮
@@ -933,17 +860,7 @@
                         attackBoss();
                     }
                 });
-                mobileAttackBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    if (game.currentBoss) {
-                        attackBoss();
-                    }
-                });
             }
-            
-            // 触摸长按加速
-            document.addEventListener('touchstart', handleTouchStart);
-            document.addEventListener('touchend', handleTouchEnd);
             
             console.log("移动端控制设置完成");
         }
@@ -951,41 +868,9 @@
         function handleMobileDirection(dir) {
             if (!game.isRunning || game.isPaused) return;
             
-            // 防止反向移动
             const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
             if (game.direction !== opposites[dir]) {
                 game.nextDirection = dir;
-            }
-        }
-
-        function handleTouchStart(e) {
-            if (!game.isRunning || game.isPaused) return;
-            
-            game.touchStartTime = Date.now();
-        }
-
-        function handleTouchEnd(e) {
-            if (!game.isRunning || game.isPaused || !game.touchStartTime) return;
-            
-            const touchDuration = Date.now() - game.touchStartTime;
-            if (touchDuration > 500 && game.touchDirection) {
-                // 长按加速
-                const originalSpeed = game.speed;
-                game.speed = Math.max(50, originalSpeed * 0.5);
-                
-                setTimeout(() => {
-                    game.speed = originalSpeed;
-                }, 1000);
-                
-                showMessage("⚡ 加速移动！", "success");
-            }
-        }
-
-        function preventScroll(e) {
-            // 在游戏板区域和方向键区域阻止默认滚动
-            if (e.target.closest('.game-board') || e.target.closest('.dpad-container') || 
-                e.target.closest('.action-btn')) {
-                e.preventDefault();
             }
         }
 
@@ -1012,7 +897,7 @@
             
             elements.gameOver.style.display = 'none';
             
-            showMessage("游戏开始！使用方向键控制移动", "success");
+            showMessage("游戏开始！Boss会在30秒后自动出现", "success");
         }
 
         function resetGame() {
@@ -1039,6 +924,14 @@
             game.currentBoss = null;
             game.bossBullets = [];
             
+            // 重置Boss计时器
+            game.nextBossSpawnTime = 0;
+            if (game.bossSpawnTimer) {
+                clearInterval(game.bossSpawnTimer);
+                game.bossSpawnTimer = null;
+            }
+            elements.bossTimer.style.display = 'none';
+            
             // 生成初始食物
             generateFood(8);
             
@@ -1057,6 +950,7 @@
             updateBoss();
             updateBullets();
             spawnRandomElements();
+            checkAutoBossSpawn(); // 检查Boss自动出现
             
             render();
             
@@ -1166,8 +1060,6 @@
             
             game.currentBoss.health -= 10 * game.combo;
             
-            showMessage(`攻击Boss！造成${10 * game.combo}点伤害`, "success");
-            
             // 检查Boss是否被击败
             if (game.currentBoss.health <= 0) {
                 const reward = game.currentBoss.reward * game.combo;
@@ -1178,6 +1070,9 @@
                 
                 // 恢复生命值
                 game.playerHealth = Math.min(100, game.playerHealth + 20);
+                
+                // 重置Boss出现计时
+                scheduleNextBossSpawn();
                 
                 game.currentBoss = null;
             }
@@ -1236,10 +1131,14 @@
                 game.currentBoss = boss;
                 showMessage(`${boss.name}出现了！小心应对！`, "boss");
                 
+                // 隐藏倒计时
+                elements.bossTimer.style.display = 'none';
+                
                 updateBossDisplay();
             }
         }
 
+        // ========== 修复：Boss不会污染棋盘 ==========
         function updateBoss() {
             if (!game.currentBoss) return;
             
@@ -1318,6 +1217,94 @@
             }
         }
 
+        // ========== 修复：Boss自动出现系统 ==========
+        function checkAutoBossSpawn() {
+            if (!game.isRunning || game.isPaused || game.currentBoss) return;
+            
+            const now = Date.now();
+            
+            // 初始化下次出现时间
+            if (game.nextBossSpawnTime === 0) {
+                scheduleNextBossSpawn();
+                startBossCountdown();
+                return;
+            }
+            
+            // 检查是否到了出现时间
+            if (now >= game.nextBossSpawnTime) {
+                // 检查分数是否达标
+                if (game.score >= CONFIG.BOSS_AUTO_SPAWN.minScore) {
+                    // 随机决定是否出现
+                    if (Math.random() < CONFIG.BOSS_AUTO_SPAWN.chance) {
+                        summonBossAuto();
+                    } else {
+                        // 没出现，设置下次检查时间
+                        scheduleNextBossSpawn();
+                    }
+                } else {
+                    // 分数不够，推迟出现
+                    game.nextBossSpawnTime = now + 15000; // 15秒后再检查
+                }
+            }
+            
+            // 更新倒计时显示
+            updateBossCountdown();
+        }
+
+        function scheduleNextBossSpawn() {
+            const now = Date.now();
+            if (game.nextBossSpawnTime === 0) {
+                // 第一次出现：30秒后
+                game.nextBossSpawnTime = now + CONFIG.BOSS_AUTO_SPAWN.initialDelay;
+            } else {
+                // 之后：每45秒一次
+                game.nextBossSpawnTime = now + CONFIG.BOSS_AUTO_SPAWN.interval;
+            }
+            
+            // 显示倒计时
+            elements.bossTimer.style.display = 'block';
+        }
+
+        function summonBossAuto() {
+            if (game.currentBoss) return;
+            
+            showMessage("⚠️ Boss即将出现！准备战斗！", "warning");
+            
+            // 延迟1.5秒后出现，给玩家反应时间
+            setTimeout(() => {
+                if (!game.currentBoss && game.isRunning && !game.isPaused) {
+                    summonBoss();
+                }
+            }, 1500);
+        }
+
+        function startBossCountdown() {
+            if (!game.bossSpawnTimer) {
+                game.bossSpawnTimer = setInterval(updateBossCountdown, 1000);
+            }
+        }
+
+        function updateBossCountdown() {
+            if (!game.isRunning || game.currentBoss) return;
+            
+            const now = Date.now();
+            const timeLeft = Math.max(0, game.nextBossSpawnTime - now);
+            const secondsLeft = Math.ceil(timeLeft / 1000);
+            
+            if (elements.bossCountdown) {
+                elements.bossCountdown.textContent = secondsLeft;
+                
+                // 最后10秒变红色
+                if (secondsLeft <= 10) {
+                    elements.bossCountdown.style.color = '#ff4757';
+                } else if (secondsLeft <= 30) {
+                    elements.bossCountdown.style.color = '#ffcc00';
+                } else {
+                    elements.bossCountdown.style.color = '#4dff91';
+                }
+            }
+        }
+
         // ========== 其他游戏系统 ==========
         function generateFood(count = 1) {
             for (let n = 0; n < count; n++) {
@@ -1370,11 +1357,6 @@
             if (Math.random() < 0.03 && game.foods.length < 12) {
                 generateFood(1);
             }
-            
-            // 随机生成Boss
-            if (!game.currentBoss && Math.random() < 0.005 && game.level >= 3) {
-                summonBoss();
-            }
         }
 
         function updateCombo() {
@@ -1384,12 +1366,11 @@
             }
         }
 
-        // ========== 渲染系统 ==========
+        // ========== 修复渲染函数 - Boss不会污染棋盘 ==========
         function render() {
-            // 清空所有格子
+            // 清空所有格子的特殊类
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.className = 'cell';
-                cell.textContent = '';
             });
             
             // 渲染蛇
@@ -1408,12 +1389,12 @@
                 }
             });
             
-            // 渲染Boss
+            // 渲染Boss - 只在当前位置显示，不会污染棋盘
             if (game.currentBoss) {
                 const cell = document.getElementById(`cell-${game.currentBoss.x}-${game.currentBoss.y}`);
                 if (cell) {
                     cell.classList.add('boss');
-                    cell.style.background = game.currentBoss.color;
+                    cell.style.setProperty('--boss-color', game.currentBoss.color);
                 }
             }
             
@@ -1422,7 +1403,7 @@
                 const cell = document.getElementById(`cell-${bullet.x}-${bullet.y}`);
                 if (cell) {
                     cell.classList.add('boss-bullet');
-                    cell.style.background = bullet.color;
+                    cell.style.setProperty('--bullet-color', bullet.color);
                 }
             });
         }
@@ -1455,6 +1436,10 @@
 
         function restartGame() {
             clearInterval(game.gameInterval);
+            if (game.bossSpawnTimer) {
+                clearInterval(game.bossSpawnTimer);
+                game.bossSpawnTimer = null;
+            }
             game.isRunning = false;
             game.isPaused = false;
             startGame();
@@ -1462,6 +1447,10 @@
 
         function gameOver() {
             clearInterval(game.gameInterval);
+            if (game.bossSpawnTimer) {
+                clearInterval(game.bossSpawnTimer);
+                game.bossSpawnTimer = null;
+            }
             game.isRunning = false;
             
             // 更新最高分
@@ -1525,6 +1514,9 @@
             elements.playerHealth.textContent = game.playerHealth;
             elements.playerCombo.textContent = `x${game.combo}`;
             elements.playerHealthBar.style.width = `${game.playerHealth}%`;
+            
+            // Boss信息
+            updateBossDisplay();
             
             // 难度更新
             updateGameSpeed();
