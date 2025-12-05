@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐍 贪吃蛇大冒险 | Boss挑战版</title>
+    <title>🐍 贪吃蛇大冒险 | 移动端优化版</title>
     <style>
         * {
             margin: 0;
@@ -16,34 +16,40 @@
             background: linear-gradient(135deg, #0a0a2a, #1a1a3a);
             color: white;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .game-container {
             background: rgba(20, 20, 40, 0.95);
             border-radius: 20px;
-            padding: 25px;
+            padding: 20px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
             max-width: 900px;
-            width: 100%;
+            margin: 0 auto;
+            position: relative;
         }
         
         h1 {
             text-align: center;
             color: #ff6b6b;
             margin-bottom: 20px;
-            font-size: 2.8rem;
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
             text-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
         }
         
         .game-header {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .game-header {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
         }
         
         .player-stats, .boss-stats, .game-controls {
@@ -71,13 +77,13 @@
         }
         
         .stat-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #aaa;
             margin-bottom: 5px;
         }
         
         .stat-value {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: bold;
         }
         
@@ -86,22 +92,22 @@
         #player-health { color: #ffcc00; }
         #player-combo { color: #ff6bff; }
         
-        #boss-name { color: #ff4757; font-size: 1.2rem; font-weight: bold; }
-        #boss-health { color: #ff6b6b; font-size: 2rem; }
+        #boss-name { color: #ff4757; font-size: 1.1rem; font-weight: bold; }
+        #boss-health { color: #ff6b6b; font-size: 1.5rem; }
         #boss-phase { color: #ffcc00; }
         
         .health-bar-container {
             width: 100%;
-            height: 20px;
+            height: 16px;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            margin: 10px 0;
+            border-radius: 8px;
+            margin: 8px 0;
             overflow: hidden;
         }
         
         .health-bar {
             height: 100%;
-            border-radius: 10px;
+            border-radius: 8px;
             transition: width 0.3s ease;
         }
         
@@ -109,22 +115,21 @@
         #boss-health-bar { background: linear-gradient(90deg, #ff4757, #ff0000); }
         
         .control-buttons {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
             margin-top: 15px;
         }
         
         button, select {
-            padding: 12px 20px;
+            padding: 12px;
             font-size: 1rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
             transition: all 0.3s;
-            flex: 1;
-            min-width: 120px;
+            min-width: 0;
         }
         
         button {
@@ -132,34 +137,35 @@
             color: white;
         }
         
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(77, 124, 255, 0.4);
+        button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
         }
         
         select {
             background: #2a2a4e;
             color: white;
             border: 2px solid #4d7cff;
+            grid-column: span 2;
         }
         
         .game-area {
             position: relative;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
         }
         
         .game-board {
             display: grid;
-            grid-template-columns: repeat(25, 1fr); /* 增大棋盘 */
-            grid-template-rows: repeat(18, 1fr);    /* 增大棋盘 */
-            width: 750px;
-            height: 540px;
-            margin: 0 auto;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            width: min(95vw, 600px);
+            height: min(67vw, 450px);
             background: #0a0a1a;
             border: 3px solid #4d7cff;
             border-radius: 8px;
             overflow: hidden;
-            position: relative;
         }
         
         .cell {
@@ -211,7 +217,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 10px;
             color: white;
             font-weight: bold;
         }
@@ -219,8 +225,8 @@
         .boss::after {
             content: '👑';
             position: absolute;
-            top: -8px;
-            font-size: 14px;
+            top: -6px;
+            font-size: 12px;
         }
         
         /* 子弹样式 */
@@ -259,11 +265,166 @@
             to { transform: scale(1.2); }
         }
         
+        /* ========== 移动端方向控制键 ========== */
+        .mobile-controls {
+            display: none; /* 默认隐藏，手机端显示 */
+            margin-top: 30px;
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 30px auto 0;
+        }
+        
+        /* 检测手机端 */
+        @media (max-width: 768px) and (hover: none) {
+            .mobile-controls {
+                display: block;
+            }
+        }
+        
+        /* 触摸设备检测 */
+        @media (hover: none) and (pointer: coarse) {
+            .mobile-controls {
+                display: block;
+            }
+        }
+        
+        .dpad-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto;
+            user-select: none;
+        }
+        
+        .dpad-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+        }
+        
+        .dpad-direction {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            background: rgba(77, 124, 255, 0.3);
+            border: 3px solid rgba(77, 124, 255, 0.6);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .dpad-direction:active {
+            background: rgba(77, 124, 255, 0.7);
+            transform: scale(0.95);
+        }
+        
+        .dpad-up {
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .dpad-down {
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .dpad-left {
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .dpad-right {
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* 手机端操作提示 */
+        .mobile-hint {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        
+        /* 额外的操作按钮 */
+        .mobile-action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .action-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(46, 204, 113, 0.3);
+            border: 3px solid rgba(46, 204, 113, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+            backdrop-filter: blur(10px);
+        }
+        
+        .action-btn:active {
+            background: rgba(46, 204, 113, 0.7);
+            transform: scale(0.9);
+        }
+        
+        .action-btn.pause-btn {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: rgba(52, 152, 219, 0.6);
+        }
+        
+        .action-btn.pause-btn:active {
+            background: rgba(52, 152, 219, 0.7);
+        }
+        
         /* 游戏信息 */
         .game-info {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 20px;
+            margin-top: 25px;
+        }
+        
+        @media (min-width: 768px) {
+            .game-info {
+                grid-template-columns: 1fr 1fr;
+            }
         }
         
         .info-panel {
@@ -277,30 +438,6 @@
             color: #4d7cff;
             margin-bottom: 15px;
             font-size: 1.2rem;
-        }
-        
-        .boss-info {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .boss-type {
-            padding: 8px;
-            background: rgba(255, 71, 87, 0.1);
-            border-radius: 6px;
-            border-left: 4px solid #ff4757;
-        }
-        
-        .boss-type h4 {
-            color: #ff6b6b;
-            margin-bottom: 5px;
-        }
-        
-        .boss-type p {
-            font-size: 0.9rem;
-            color: #aaa;
-            line-height: 1.4;
         }
         
         /* 消息系统 */
@@ -323,6 +460,7 @@
             border-left: 4px solid;
             animation: slide-in 0.3s ease-out;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            font-size: 0.9rem;
         }
         
         .message.boss { border-color: #ff4757; }
@@ -346,73 +484,118 @@
             justify-content: center;
             align-items: center;
             z-index: 2000;
+            padding: 20px;
         }
         
         .game-over-content {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             text-align: center;
             border: 3px solid #ff4757;
             box-shadow: 0 0 50px #ff4757;
-            max-width: 500px;
-            width: 90%;
+            width: 100%;
+            max-width: 400px;
         }
         
         .game-over-content h2 {
             color: #ff4757;
-            font-size: 3rem;
+            font-size: 2.5rem;
             margin-bottom: 20px;
         }
         
-        /* 响应式设计 */
-        @media (max-width: 900px) {
-            .game-board {
-                width: 600px;
-                height: 432px;
-                grid-template-columns: repeat(20, 1fr);
-                grid-template-rows: repeat(15, 1fr);
-            }
-            
-            .game-header {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        @media (max-width: 650px) {
-            .game-board {
-                width: 450px;
-                height: 324px;
-                grid-template-columns: repeat(15, 1fr);
-                grid-template-rows: repeat(12, 1fr);
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .game-info {
-                grid-template-columns: 1fr;
-            }
-        }
-        
+        /* 响应式调整 */
         @media (max-width: 480px) {
             .game-board {
-                width: 300px;
-                height: 216px;
-                grid-template-columns: repeat(10, 1fr);
-                grid-template-rows: repeat(8, 1fr);
+                grid-template-columns: repeat(15, 1fr);
+                grid-template-rows: repeat(12, 1fr);
+                height: min(80vw, 360px);
+            }
+            
+            .dpad-container {
+                width: 240px;
+                height: 240px;
+            }
+            
+            .dpad-direction {
+                width: 75px;
+                height: 75px;
+                font-size: 28px;
+            }
+            
+            .dpad-center {
+                width: 70px;
+                height: 70px;
+            }
+            
+            .action-btn {
+                width: 60px;
+                height: 60px;
             }
             
             .control-buttons {
-                flex-direction: column;
+                grid-template-columns: 1fr;
             }
+            
+            select {
+                grid-column: span 1;
+            }
+            
+            .stat-value {
+                font-size: 1.3rem;
+            }
+        }
+        
+        /* 平板优化 */
+        @media (min-width: 481px) and (max-width: 768px) {
+            .game-board {
+                grid-template-columns: repeat(18, 1fr);
+                grid-template-rows: repeat(14, 1fr);
+            }
+        }
+        
+        /* 横屏模式优化 */
+        @media (orientation: landscape) and (max-height: 600px) {
+            .game-header {
+                grid-template-columns: 1fr 1fr;
+                margin-bottom: 10px;
+            }
+            
+            .game-board {
+                width: min(70vh, 500px);
+                height: min(50vh, 350px);
+            }
+            
+            .mobile-controls {
+                margin-top: 20px;
+            }
+            
+            .dpad-container {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .dpad-direction {
+                width: 70px;
+                height: 70px;
+                font-size: 24px;
+            }
+        }
+        
+        /* 防止点击时缩放 */
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+        
+        /* 防止双击缩放 */
+        * {
+            touch-action: manipulation;
         }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>🐍 贪吃蛇大冒险 - Boss挑战</h1>
+        <h1>🐍 贪吃蛇大冒险</h1>
         
         <!-- 游戏头部信息 -->
         <div class="game-header">
@@ -473,36 +656,57 @@
             <div class="game-board" id="game-board"></div>
         </div>
         
+        <!-- ========== 移动端方向控制键 ========== -->
+        <div class="mobile-controls">
+            <div class="dpad-container">
+                <div class="dpad-center">○</div>
+                <div class="dpad-direction dpad-up" id="mobile-up">↑</div>
+                <div class="dpad-direction dpad-down" id="mobile-down">↓</div>
+                <div class="dpad-direction dpad-left" id="mobile-left">←</div>
+                <div class="dpad-direction dpad-right" id="mobile-right">→</div>
+            </div>
+            
+            <div class="mobile-hint">
+                📱 触摸方向键控制移动，长按加速
+            </div>
+            
+            <!-- 额外操作按钮 -->
+            <div class="mobile-action-buttons">
+                <div class="action-btn pause-btn" id="mobile-pause">
+                    ⏸️
+                </div>
+                <div class="action-btn" id="mobile-attack">
+                    ⚔️
+                </div>
+            </div>
+        </div>
+        
         <!-- 游戏信息 -->
         <div class="game-info">
             <div class="info-panel">
-                <h3>🎯 Boss介绍</h3>
-                <div class="boss-info">
-                    <div class="boss-type">
-                        <h4>🔥 火焰领主</h4>
-                        <p>发射火焰子弹，移动速度快。击败奖励：300分</p>
-                    </div>
-                    <div class="boss-type">
-                        <h4>❄️ 寒冰女王</h4>
-                        <p>发射冰冻子弹，减慢玩家速度。击败奖励：400分</p>
-                    </div>
-                    <div class="boss-type">
-                        <h4>⚡ 雷霆之王</h4>
-                        <p>发射闪电子弹，移动轨迹不可预测。击败奖励：500分</p>
-                    </div>
-                </div>
+                <h3>🎮 操作说明</h3>
+                <ul style="padding-left: 20px; line-height: 1.6; font-size: 0.95rem;">
+                    <li><strong>方向键/WASD</strong>：控制蛇移动</li>
+                    <li><strong>空格键/暂停按钮</strong>：暂停/继续游戏</li>
+                    <li><strong>靠近Boss</strong>：自动攻击Boss</li>
+                    <li><strong>召唤Boss按钮</strong>：手动召唤Boss战斗</li>
+                    <li><strong>攻击按钮</strong>：手机端快速攻击</li>
+                    <li><strong>连击系统</strong>：连续吃食物增加分数倍数</li>
+                </ul>
             </div>
             
             <div class="info-panel">
-                <h3>🎮 操作说明</h3>
-                <ul style="padding-left: 20px; line-height: 1.6;">
-                    <li><strong>方向键/WASD</strong>：控制蛇移动</li>
-                    <li><strong>空格键</strong>：暂停/继续游戏</li>
-                    <li><strong>靠近Boss</strong>：自动攻击Boss</li>
-                    <li><strong>远离Boss子弹</strong>：避免受到伤害</li>
-                    <li><strong>连续吃到食物</strong>：增加连击倍数</li>
-                    <li><strong>输入秘籍</strong>：输入"boss"召唤Boss</li>
-                </ul>
+                <h3>🎯 Boss介绍</h3>
+                <div class="boss-info" style="margin-top: 10px;">
+                    <div style="margin-bottom: 10px; padding: 8px; background: rgba(255, 71, 87, 0.1); border-radius: 6px; border-left: 4px solid #ff4757;">
+                        <h4 style="color: #ff6b6b; margin-bottom: 5px;">🔥 火焰领主</h4>
+                        <p style="font-size: 0.9rem; color: #aaa;">发射火焰子弹，击败奖励300分</p>
+                    </div>
+                    <div style="margin-bottom: 10px; padding: 8px; background: rgba(0, 204, 255, 0.1); border-radius: 6px; border-left: 4px solid #00ccff;">
+                        <h4 style="color: #00ccff; margin-bottom: 5px;">❄️ 寒冰女王</h4>
+                        <p style="font-size: 0.9rem; color: #aaa;">减慢玩家速度，击败奖励400分</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -528,8 +732,8 @@
     <script>
         // ========== 游戏配置 ==========
         const CONFIG = {
-            BOARD_COLS: 25,
-            BOARD_ROWS: 18,
+            BOARD_COLS: 20,
+            BOARD_ROWS: 15,
             SPEEDS: {
                 easy: 180,
                 normal: 140,
@@ -556,15 +760,6 @@
                 color: "#00ccff",
                 reward: 400,
                 attackPattern: "ice"
-            },
-            thunderking: {
-                name: "⚡ 雷霆之王",
-                health: 250,
-                damage: 25,
-                speed: 1.2,
-                color: "#ffff00",
-                reward: 500,
-                attackPattern: "lightning"
             }
         };
 
@@ -594,7 +789,11 @@
             isPaused: false,
             speed: CONFIG.SPEEDS.normal,
             gameInterval: null,
-            inputCode: ''
+            inputCode: '',
+            
+            // 移动端触摸状态
+            touchStartTime: 0,
+            touchDirection: null
         };
 
         // ========== DOM元素 ==========
@@ -638,6 +837,9 @@
             // 设置事件监听器
             setupEventListeners();
             
+            // 设置移动端控制
+            setupMobileControls();
+            
             // 更新显示
             updateDisplay();
             
@@ -673,9 +875,118 @@
             
             // 键盘控制
             document.addEventListener('keydown', handleKeyDown);
-            document.addEventListener('keypress', handleSecretCode);
+            
+            // 防止页面滚动
+            document.addEventListener('touchmove', preventScroll, { passive: false });
             
             console.log("事件监听器设置完成");
+        }
+
+        function setupMobileControls() {
+            // 移动端方向键
+            const directions = ['up', 'down', 'left', 'right'];
+            directions.forEach(dir => {
+                const btn = document.getElementById(`mobile-${dir}`);
+                if (btn) {
+                    // 触摸开始
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        game.touchStartTime = Date.now();
+                        game.touchDirection = dir;
+                        handleMobileDirection(dir);
+                    });
+                    
+                    // 触摸结束
+                    btn.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        game.touchDirection = null;
+                    });
+                    
+                    // 防止默认行为
+                    btn.addEventListener('touchcancel', (e) => {
+                        e.preventDefault();
+                        game.touchDirection = null;
+                    });
+                    
+                    // 点击事件备用
+                    btn.addEventListener('click', () => {
+                        handleMobileDirection(dir);
+                    });
+                }
+            });
+            
+            // 手机暂停按钮
+            const mobilePauseBtn = document.getElementById('mobile-pause');
+            if (mobilePauseBtn) {
+                mobilePauseBtn.addEventListener('click', togglePause);
+                mobilePauseBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    togglePause();
+                });
+            }
+            
+            // 手机攻击按钮
+            const mobileAttackBtn = document.getElementById('mobile-attack');
+            if (mobileAttackBtn) {
+                mobileAttackBtn.addEventListener('click', () => {
+                    if (game.currentBoss) {
+                        attackBoss();
+                    }
+                });
+                mobileAttackBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (game.currentBoss) {
+                        attackBoss();
+                    }
+                });
+            }
+            
+            // 触摸长按加速
+            document.addEventListener('touchstart', handleTouchStart);
+            document.addEventListener('touchend', handleTouchEnd);
+            
+            console.log("移动端控制设置完成");
+        }
+
+        function handleMobileDirection(dir) {
+            if (!game.isRunning || game.isPaused) return;
+            
+            // 防止反向移动
+            const opposites = { up: 'down', down: 'up', left: 'right', right: 'left' };
+            if (game.direction !== opposites[dir]) {
+                game.nextDirection = dir;
+            }
+        }
+
+        function handleTouchStart(e) {
+            if (!game.isRunning || game.isPaused) return;
+            
+            game.touchStartTime = Date.now();
+        }
+
+        function handleTouchEnd(e) {
+            if (!game.isRunning || game.isPaused || !game.touchStartTime) return;
+            
+            const touchDuration = Date.now() - game.touchStartTime;
+            if (touchDuration > 500 && game.touchDirection) {
+                // 长按加速
+                const originalSpeed = game.speed;
+                game.speed = Math.max(50, originalSpeed * 0.5);
+                
+                setTimeout(() => {
+                    game.speed = originalSpeed;
+                }, 1000);
+                
+                showMessage("⚡ 加速移动！", "success");
+            }
+        }
+
+        function preventScroll(e) {
+            // 在游戏板区域和方向键区域阻止默认滚动
+            if (e.target.closest('.game-board') || e.target.closest('.dpad-container') || 
+                e.target.closest('.action-btn')) {
+                e.preventDefault();
+            }
         }
 
         // ========== 游戏控制 ==========
@@ -691,6 +1002,7 @@
             if (game.isPaused) {
                 game.isPaused = false;
                 elements.pauseBtn.textContent = '暂停游戏';
+                updatePauseButton();
             }
             
             updateGameSpeed();
@@ -700,7 +1012,7 @@
             
             elements.gameOver.style.display = 'none';
             
-            showMessage("游戏开始！小心Boss的攻击！", "success");
+            showMessage("游戏开始！使用方向键控制移动", "success");
         }
 
         function resetGame() {
@@ -779,7 +1091,7 @@
             for (let i = 1; i < game.snake.length; i++) {
                 if (head.x === game.snake[i].x && head.y === game.snake[i].y) {
                     game.playerHealth -= 20;
-                    game.snake.splice(i); // 移除撞到的部分
+                    game.snake.splice(i);
                     break;
                 }
             }
@@ -973,11 +1285,6 @@
                     speedX = Math.sign(dx) || (Math.random() > 0.5 ? 1 : -1);
                     speedY = Math.sign(dy) || (Math.random() > 0.5 ? 1 : -1);
                     break;
-                case 'lightning':
-                    // 闪电弹：随机方向
-                    speedX = Math.random() > 0.5 ? 1 : -1;
-                    speedY = Math.random() > 0.5 ? 1 : -1;
-                    break;
                 default: // fire
                     // 火焰弹：瞄准玩家
                     speedX = Math.sign(dx) || 0;
@@ -1129,11 +1436,20 @@
             if (game.isPaused) {
                 clearInterval(game.gameInterval);
                 elements.pauseBtn.textContent = '继续游戏';
+                updatePauseButton();
                 showMessage("游戏已暂停", "warning");
             } else {
                 game.gameInterval = setInterval(gameLoop, game.speed);
                 elements.pauseBtn.textContent = '暂停游戏';
+                updatePauseButton();
                 showMessage("游戏继续", "success");
+            }
+        }
+
+        function updatePauseButton() {
+            const mobilePauseBtn = document.getElementById('mobile-pause');
+            if (mobilePauseBtn) {
+                mobilePauseBtn.textContent = game.isPaused ? '▶️' : '⏸️';
             }
         }
 
@@ -1198,26 +1514,6 @@
                 case 'B':
                     summonBoss();
                     break;
-            }
-        }
-
-        function handleSecretCode(e) {
-            game.inputCode += e.key.toLowerCase();
-            
-            if (game.inputCode.length > 10) {
-                game.inputCode = game.inputCode.slice(-10);
-            }
-            
-            // 秘籍代码
-            if (game.inputCode.includes('boss')) {
-                summonBoss();
-                game.inputCode = '';
-            }
-            
-            if (game.inputCode.includes('god')) {
-                game.playerHealth = 100;
-                showMessage("上帝模式激活！生命值已恢复", "success");
-                game.inputCode = '';
             }
         }
 
