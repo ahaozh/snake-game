@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐍 贪吃蛇大冒险 | 移动端优化版</title>
+    <title>🐍 贪吃蛇大冒险 | 关卡模式</title>
     <style>
         * {
             margin: 0;
@@ -37,6 +37,35 @@
             margin-bottom: 20px;
             font-size: clamp(1.8rem, 5vw, 2.8rem);
             text-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+        }
+        
+        .game-mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .mode-btn {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            background: rgba(30, 30, 60, 0.8);
+            color: white;
+            border: 2px solid #4d7cff;
+        }
+        
+        .mode-btn.active {
+            background: linear-gradient(45deg, #4d7cff, #6c5ce7);
+            box-shadow: 0 0 15px rgba(77, 124, 255, 0.5);
+        }
+        
+        .mode-btn:hover {
+            transform: translateY(-2px);
         }
         
         .game-header {
@@ -91,10 +120,37 @@
         #player-level { color: #00ccff; }
         #player-health { color: #ffcc00; }
         #player-combo { color: #ff6bff; }
+        #foods-eaten { color: #ff9966; }
         
         #boss-name { color: #ff4757; font-size: 1.1rem; font-weight: bold; }
         #boss-health { color: #ff6b6b; font-size: 1.5rem; }
         #boss-phase { color: #ffcc00; }
+        
+        .level-progress {
+            margin-top: 10px;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9966, #ff5500);
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
         
         .health-bar-container {
             width: 100%;
@@ -206,7 +262,19 @@
             animation: spin 2s infinite linear, float 3s infinite ease-in-out;
         }
         
-        /* Boss样式 - 修复：不会污染棋盘 */
+        /* 关卡Boss标记 */
+        .level-food {
+            background: radial-gradient(circle, #ff00ff, #cc00cc);
+            box-shadow: 0 0 20px #ff00ff;
+            animation: pulse 1s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { transform: scale(0.9); }
+            to { transform: scale(1.1); }
+        }
+        
+        /* Boss样式 */
         .boss {
             background: radial-gradient(circle at center, var(--boss-color, #ff0000), #880000);
             border-radius: 40%;
@@ -282,14 +350,12 @@
             margin: 30px auto 0;
         }
         
-        /* 检测手机端 */
         @media (max-width: 768px) and (hover: none) {
             .mobile-controls {
                 display: block;
             }
         }
         
-        /* 触摸设备检测 */
         @media (hover: none) and (pointer: coarse) {
             .mobile-controls {
                 display: block;
@@ -468,6 +534,27 @@
             font-size: 1.1rem;
         }
         
+        /* 关卡进度 */
+        .level-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 204, 255, 0.2);
+            border: 2px solid #00ccff;
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            color: #00ccff;
+            font-weight: bold;
+            display: none;
+            z-index: 10;
+        }
+        
+        .level-indicator span {
+            color: #ffcc00;
+            font-size: 1.1rem;
+        }
+        
         /* 消息系统 */
         .message-container {
             position: fixed;
@@ -494,6 +581,7 @@
         .message.boss { border-color: #ff4757; }
         .message.warning { border-color: #ffcc00; }
         .message.success { border-color: #4dff91; }
+        .message.level { border-color: #ff00ff; }
         
         @keyframes slide-in {
             from { transform: translateX(100%); opacity: 0; }
@@ -537,9 +625,21 @@
     <div class="game-container">
         <h1>🐍 贪吃蛇大冒险</h1>
         
+        <!-- 游戏模式选择 -->
+        <div class="game-mode-selector">
+            <button class="mode-btn active" id="mode-normal">普通模式</button>
+            <button class="mode-btn" id="mode-level">关卡模式</button>
+        </div>
+        
         <!-- Boss自动出现倒计时 -->
         <div class="boss-timer" id="boss-timer">
             Boss出现: <span id="boss-countdown">--</span>秒
+        </div>
+        
+        <!-- 关卡进度 -->
+        <div class="level-indicator" id="level-indicator">
+            关卡: <span id="current-level">1</span>
+            进度: <span id="level-progress">0/10</span>
         </div>
         
         <!-- 游戏头部信息 -->
@@ -566,6 +666,17 @@
                 </div>
                 <div class="health-bar-container">
                     <div class="health-bar" id="player-health-bar" style="width: 100%"></div>
+                </div>
+                
+                <!-- 关卡模式特有：食物进度 -->
+                <div class="level-progress" id="level-progress-container" style="display: none;">
+                    <div class="progress-text">
+                        <span>关卡进度</span>
+                        <span id="foods-counter">0/10</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="foods-progress-bar" style="width: 0%"></div>
+                    </div>
                 </div>
             </div>
             
@@ -640,12 +751,12 @@
             </div>
             
             <div class="info-panel">
-                <h3>🎯 Boss系统</h3>
+                <h3>🎯 关卡模式说明</h3>
                 <div style="margin-top: 10px;">
-                    <p style="margin-bottom: 10px; color: #4dff91;">✓ Boss会<strong>自动出现</strong>（每45秒）</p>
-                    <p style="margin-bottom: 10px; color: #ffcc00;">✓ 点击按钮可<strong>手动召唤</strong></p>
-                    <p style="margin-bottom: 10px; color: #00ccff;">✓ 右上角显示<strong>出现倒计时</strong></p>
-                    <p style="margin-bottom: 10px; color: #ff6bff;">✓ 击败Boss获得<strong>大量分数</strong></p>
+                    <p style="margin-bottom: 10px; color: #ff9966;">✓ <strong>每吃10个食物</strong>出现一个关卡Boss</p>
+                    <p style="margin-bottom: 10px; color: #ff00ff;">✓ 特殊<strong>紫色食物</strong>显示进度</p>
+                    <p style="margin-bottom: 10px; color: #00ccff;">✓ 击败Boss进入<strong>下一关卡</strong></p>
+                    <p style="margin-bottom: 10px; color: #ff6bff;">✓ Boss<strong>逐渐变强</strong>，奖励增加</p>
                 </div>
             </div>
         </div>
@@ -661,6 +772,7 @@
             <div style="margin: 30px 0;">
                 <p style="font-size: 1.5rem; margin: 10px 0;">🎯 最终分数: <span id="final-score">0</span></p>
                 <p style="font-size: 1.2rem; margin: 10px 0;">🏆 击败Boss: <span id="boss-defeated">0</span>个</p>
+                <p style="font-size: 1.2rem; margin: 10px 0; color: gold;">📈 通关关卡: <span id="final-level">1</span></p>
                 <p style="font-size: 1.2rem; margin: 10px 0; color: gold;">⭐ 最高连击: x<span id="final-combo">1</span></p>
             </div>
             <button onclick="restartGame()" style="padding: 15px 40px; font-size: 1.2rem; width: 100%; margin-top: 20px;">
@@ -679,12 +791,18 @@
                 normal: 140,
                 hard: 100
             },
-            // Boss自动出现配置
-            BOSS_AUTO_SPAWN: {
-                initialDelay: 30000,    // 初始延迟30秒
-                interval: 45000,        // 每45秒一次
-                minScore: 50,           // 最低分数要求
-                chance: 0.6             // 60%几率出现
+            // 游戏模式
+            GAME_MODES: {
+                NORMAL: 'normal',
+                LEVEL: 'level'
+            },
+            // 关卡模式配置
+            LEVEL_MODE: {
+                foodsPerLevel: 10,           // 每关需要吃的食物数量
+                initialLevel: 1,             // 初始关卡
+                bossHealthIncrease: 20,      // 每关Boss血量增加百分比
+                bossDamageIncrease: 10,      // 每关Boss伤害增加百分比
+                levelRewardMultiplier: 1.5   // 每关奖励倍数增加
             }
         };
 
@@ -707,6 +825,24 @@
                 color: "#00ccff",
                 reward: 400,
                 attackPattern: "ice"
+            },
+            thunderking: {
+                name: "⚡ 雷电之王",
+                health: 180,
+                damage: 18,
+                speed: 1.2,
+                color: "#ffff00",
+                reward: 500,
+                attackPattern: "thunder"
+            },
+            earthguardian: {
+                name: "🌿 大地守护者",
+                health: 200,
+                damage: 14,
+                speed: 0.7,
+                color: "#00aa00",
+                reward: 600,
+                attackPattern: "earth"
             }
         };
 
@@ -732,16 +868,21 @@
             bossBullets: [],
             
             // 游戏控制
+            gameMode: CONFIG.GAME_MODES.NORMAL,
             isRunning: false,
             isPaused: false,
             speed: CONFIG.SPEEDS.normal,
             gameInterval: null,
-            inputCode: '',
+            
+            // 关卡模式特有
+            foodsEaten: 0,
+            currentLevel: CONFIG.LEVEL_MODE.initialLevel,
+            foodsToNextLevel: CONFIG.LEVEL_MODE.foodsPerLevel,
+            isLevelBossActive: false,
             
             // Boss自动出现
             nextBossSpawnTime: 0,
-            bossSpawnTimer: null,
-            lastBossCheck: 0
+            bossSpawnTimer: null
         };
 
         // ========== DOM元素 ==========
@@ -769,11 +910,20 @@
                 gameOver: document.getElementById('game-over'),
                 finalScore: document.getElementById('final-score'),
                 bossDefeated: document.getElementById('boss-defeated'),
+                finalLevel: document.getElementById('final-level'),
                 finalCombo: document.getElementById('final-combo'),
                 difficulty: document.getElementById('difficulty'),
                 messageContainer: document.getElementById('message-container'),
                 bossTimer: document.getElementById('boss-timer'),
-                bossCountdown: document.getElementById('boss-countdown')
+                bossCountdown: document.getElementById('boss-countdown'),
+                levelIndicator: document.getElementById('level-indicator'),
+                currentLevel: document.getElementById('current-level'),
+                levelProgress: document.getElementById('level-progress'),
+                levelProgressContainer: document.getElementById('level-progress-container'),
+                foodsCounter: document.getElementById('foods-counter'),
+                foodsProgressBar: document.getElementById('foods-progress-bar'),
+                modeNormalBtn: document.getElementById('mode-normal'),
+                modeLevelBtn: document.getElementById('mode-level')
             };
             
             if (!elements.board) {
@@ -789,6 +939,9 @@
             
             // 设置移动端控制
             setupMobileControls();
+            
+            // 设置游戏模式
+            setupGameMode();
             
             // 更新显示
             updateDisplay();
@@ -812,8 +965,6 @@
                     elements.board.appendChild(cell);
                 }
             }
-            
-            console.log(`游戏板初始化完成：${CONFIG.BOARD_COLS}x${CONFIG.BOARD_ROWS}`);
         }
 
         function setupEventListeners() {
@@ -823,10 +974,12 @@
             elements.summonBossBtn.addEventListener('click', summonBoss);
             elements.difficulty.addEventListener('change', updateDifficulty);
             
+            // 游戏模式切换
+            elements.modeNormalBtn.addEventListener('click', () => setGameMode(CONFIG.GAME_MODES.NORMAL));
+            elements.modeLevelBtn.addEventListener('click', () => setGameMode(CONFIG.GAME_MODES.LEVEL));
+            
             // 键盘控制
             document.addEventListener('keydown', handleKeyDown);
-            
-            console.log("事件监听器设置完成");
         }
 
         function setupMobileControls() {
@@ -861,8 +1014,41 @@
                     }
                 });
             }
+        }
+
+        function setupGameMode() {
+            // 根据当前模式更新UI
+            updateModeUI();
+        }
+
+        function setGameMode(mode) {
+            if (game.isRunning && !game.isPaused) {
+                const confirmChange = confirm("切换游戏模式将重置当前游戏，确定要继续吗？");
+                if (!confirmChange) return;
+                
+                resetGame();
+            }
             
-            console.log("移动端控制设置完成");
+            game.gameMode = mode;
+            
+            // 更新按钮状态
+            elements.modeNormalBtn.classList.toggle('active', mode === CONFIG.GAME_MODES.NORMAL);
+            elements.modeLevelBtn.classList.toggle('active', mode === CONFIG.GAME_MODES.LEVEL);
+            
+            // 更新UI
+            updateModeUI();
+            
+            showMessage(`已切换至${mode === CONFIG.GAME_MODES.NORMAL ? '普通模式' : '关卡模式'}`, "success");
+        }
+
+        function updateModeUI() {
+            // 显示/隐藏关卡相关UI
+            const isLevelMode = game.gameMode === CONFIG.GAME_MODES.LEVEL;
+            elements.levelProgressContainer.style.display = isLevelMode ? 'block' : 'none';
+            elements.levelIndicator.style.display = isLevelMode ? 'block' : 'none';
+            
+            // 更新Boss召唤按钮文本
+            elements.summonBossBtn.textContent = isLevelMode ? '强制召唤Boss' : '召唤Boss';
         }
 
         function handleMobileDirection(dir) {
@@ -897,7 +1083,12 @@
             
             elements.gameOver.style.display = 'none';
             
-            showMessage("游戏开始！Boss会在30秒后自动出现", "success");
+            // 根据模式显示不同消息
+            if (game.gameMode === CONFIG.GAME_MODES.LEVEL) {
+                showMessage("关卡模式开始！每吃10个食物会出现Boss", "level");
+            } else {
+                showMessage("普通模式开始！Boss会在30秒后自动出现", "success");
+            }
         }
 
         function resetGame() {
@@ -924,22 +1115,31 @@
             game.currentBoss = null;
             game.bossBullets = [];
             
+            // 重置关卡模式数据
+            game.foodsEaten = 0;
+            game.currentLevel = CONFIG.LEVEL_MODE.initialLevel;
+            game.foodsToNextLevel = CONFIG.LEVEL_MODE.foodsPerLevel;
+            game.isLevelBossActive = false;
+            
             // 重置Boss计时器
             game.nextBossSpawnTime = 0;
             if (game.bossSpawnTimer) {
                 clearInterval(game.bossSpawnTimer);
                 game.bossSpawnTimer = null;
             }
-            elements.bossTimer.style.display = 'none';
+            elements.bossTimer.style.display = game.gameMode === CONFIG.GAME_MODES.NORMAL ? 'block' : 'none';
             
             // 生成初始食物
             generateFood(8);
             
+            // 如果是关卡模式，生成进度食物
+            if (game.gameMode === CONFIG.GAME_MODES.LEVEL) {
+                generateLevelFood();
+            }
+            
             // 更新显示
             updateDisplay();
             render();
-            
-            console.log("游戏重置完成");
         }
 
         function gameLoop() {
@@ -950,7 +1150,11 @@
             updateBoss();
             updateBullets();
             spawnRandomElements();
-            checkAutoBossSpawn(); // 检查Boss自动出现
+            
+            // 根据模式检查Boss
+            if (game.gameMode === CONFIG.GAME_MODES.NORMAL) {
+                checkAutoBossSpawn();
+            }
             
             render();
             
@@ -998,21 +1202,38 @@
             for (let i = 0; i < game.foods.length; i++) {
                 const food = game.foods[i];
                 if (head.x === food.x && head.y === food.y) {
-                    const points = (food.type === 'gold' ? 50 : 10) * game.combo;
-                    game.score += points;
+                    const isLevelFood = food.type === 'level';
+                    const basePoints = isLevelFood ? 20 : (food.type === 'gold' ? 50 : 10);
+                    const points = basePoints * game.combo * (game.currentLevel * 0.5 + 0.5);
+                    game.score += Math.floor(points);
                     
                     // 连击系统
                     game.combo++;
                     game.comboTime = Date.now() + 2000;
                     
                     // 恢复生命值
-                    game.playerHealth = Math.min(100, game.playerHealth + 5);
+                    game.playerHealth = Math.min(100, game.playerHealth + (isLevelFood ? 10 : 5));
                     
                     // 移除食物
                     game.foods.splice(i, 1);
                     ateFood = true;
                     
-                    showMessage(`+${points}分！生命值+5`, "success");
+                    // 关卡模式：统计吃的食物
+                    if (game.gameMode === CONFIG.GAME_MODES.LEVEL) {
+                        game.foodsEaten++;
+                        
+                        // 检查是否需要生成关卡Boss
+                        if (!game.isLevelBossActive && game.foodsEaten >= game.foodsToNextLevel) {
+                            spawnLevelBoss();
+                        }
+                        
+                        // 生成新的进度食物
+                        if (isLevelFood) {
+                            generateLevelFood();
+                        }
+                    }
+                    
+                    showMessage(`+${Math.floor(points)}分！生命值+${isLevelFood ? 10 : 5}`, "success");
                     break;
                 }
             }
@@ -1055,27 +1276,122 @@
             updateDisplay();
         }
 
-        function attackBoss() {
-            if (!game.currentBoss) return;
+        // ========== 关卡模式功能 ==========
+        function generateLevelFood() {
+            // 生成进度食物（紫色食物）
+            let food;
+            let isValid;
+            let attempts = 0;
             
-            game.currentBoss.health -= 10 * game.combo;
+            do {
+                food = {
+                    x: Math.floor(Math.random() * CONFIG.BOARD_COLS),
+                    y: Math.floor(Math.random() * CONFIG.BOARD_ROWS),
+                    type: 'level'
+                };
+                
+                isValid = true;
+                attempts++;
+                
+                if (attempts > 50) break;
+                
+                // 检查是否在蛇身上
+                for (const segment of game.snake) {
+                    if (segment.x === food.x && segment.y === food.y) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                
+                if (!isValid) continue;
+                
+                // 检查是否在其他食物上
+                for (const otherFood of game.foods) {
+                    if (otherFood.x === food.x && otherFood.y === food.y) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                
+                // 检查是否在Boss上
+                if (game.currentBoss && food.x === game.currentBoss.x && food.y === game.currentBoss.y) {
+                    isValid = false;
+                }
+                
+            } while (!isValid && attempts <= 50);
             
-            // 检查Boss是否被击败
-            if (game.currentBoss.health <= 0) {
-                const reward = game.currentBoss.reward * game.combo;
-                game.score += reward;
-                game.bossesDefeated++;
-                
-                showMessage(`🎉 击败${game.currentBoss.name}！+${reward}分`, "success");
-                
-                // 恢复生命值
-                game.playerHealth = Math.min(100, game.playerHealth + 20);
-                
-                // 重置Boss出现计时
-                scheduleNextBossSpawn();
-                
-                game.currentBoss = null;
+            if (isValid) {
+                game.foods.push(food);
             }
+        }
+
+        function spawnLevelBoss() {
+            if (game.currentBoss || game.isLevelBossActive) return;
+            
+            game.isLevelBossActive = true;
+            
+            // 计算Boss强度（随关卡增加）
+            const levelMultiplier = 1 + (game.currentLevel - 1) * 0.2;
+            
+            // 随机选择Boss类型
+            const bossTypes = Object.keys(BOSS_TYPES);
+            const randomType = bossTypes[Math.floor(Math.random() * bossTypes.length)];
+            const bossTemplate = BOSS_TYPES[randomType];
+            
+            // 生成Boss
+            let boss;
+            let isValid;
+            let attempts = 0;
+            
+            do {
+                boss = {
+                    x: Math.floor(Math.random() * CONFIG.BOARD_COLS),
+                    y: Math.floor(Math.random() * CONFIG.BOARD_ROWS),
+                    type: randomType,
+                    name: `${bossTemplate.name} Lv.${game.currentLevel}`,
+                    health: Math.floor(bossTemplate.health * levelMultiplier),
+                    maxHealth: Math.floor(bossTemplate.health * levelMultiplier),
+                    damage: Math.floor(bossTemplate.damage * levelMultiplier),
+                    speed: bossTemplate.speed,
+                    color: bossTemplate.color,
+                    reward: Math.floor(bossTemplate.reward * levelMultiplier),
+                    attackPattern: bossTemplate.attackPattern,
+                    lastAttack: Date.now(),
+                    isLevelBoss: true
+                };
+                
+                isValid = true;
+                attempts++;
+                
+                if (attempts > 50) break;
+                
+                // 确保Boss不在蛇身上
+                for (const segment of game.snake) {
+                    const distance = Math.abs(segment.x - boss.x) + Math.abs(segment.y - boss.y);
+                    if (distance <= 5) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                
+            } while (!isValid && attempts <= 50);
+            
+            if (isValid) {
+                game.currentBoss = boss;
+                showMessage(`🎯 关卡 ${game.currentLevel} Boss出现！小心应对！`, "level");
+            }
+        }
+
+        function advanceLevel() {
+            game.currentLevel++;
+            game.foodsEaten = 0;
+            game.foodsToNextLevel = CONFIG.LEVEL_MODE.foodsPerLevel;
+            game.isLevelBossActive = false;
+            
+            // 生成新的进度食物
+            generateLevelFood();
+            
+            showMessage(`🎉 恭喜通过第${game.currentLevel-1}关！进入第${game.currentLevel}关`, "success");
         }
 
         // ========== Boss系统 ==========
@@ -1085,12 +1401,19 @@
                 return;
             }
             
-            // 随机选择Boss类型
+            // 如果是在关卡模式，强制生成关卡Boss
+            if (game.gameMode === CONFIG.GAME_MODES.LEVEL) {
+                if (!game.isLevelBossActive) {
+                    spawnLevelBoss();
+                }
+                return;
+            }
+            
+            // 普通模式：随机Boss
             const bossTypes = Object.keys(BOSS_TYPES);
             const randomType = bossTypes[Math.floor(Math.random() * bossTypes.length)];
             const bossTemplate = BOSS_TYPES[randomType];
             
-            // 在远离蛇的位置生成Boss
             let boss;
             let isValid;
             let attempts = 0;
@@ -1130,15 +1453,10 @@
             if (isValid) {
                 game.currentBoss = boss;
                 showMessage(`${boss.name}出现了！小心应对！`, "boss");
-                
-                // 隐藏倒计时
                 elements.bossTimer.style.display = 'none';
-                
-                updateBossDisplay();
             }
         }
 
-        // ========== 修复：Boss不会污染棋盘 ==========
         function updateBoss() {
             if (!game.currentBoss) return;
             
@@ -1168,6 +1486,35 @@
             updateBossDisplay();
         }
 
+        function attackBoss() {
+            if (!game.currentBoss) return;
+            
+            const damage = 10 * game.combo;
+            game.currentBoss.health -= damage;
+            
+            // 检查Boss是否被击败
+            if (game.currentBoss.health <= 0) {
+                const reward = game.currentBoss.reward * game.combo;
+                game.score += reward;
+                game.bossesDefeated++;
+                
+                showMessage(`🎉 击败${game.currentBoss.name}！+${reward}分`, "success");
+                
+                // 恢复生命值
+                game.playerHealth = Math.min(100, game.playerHealth + 20);
+                
+                // 如果是关卡模式，进入下一关
+                if (game.gameMode === CONFIG.GAME_MODES.LEVEL && game.currentBoss.isLevelBoss) {
+                    advanceLevel();
+                } else {
+                    // 普通模式：重置Boss计时
+                    scheduleNextBossSpawn();
+                }
+                
+                game.currentBoss = null;
+            }
+        }
+
         function shootBullet() {
             if (!game.currentBoss || !game.snake.length) return;
             
@@ -1175,17 +1522,19 @@
             const dx = head.x - game.currentBoss.x;
             const dy = head.y - game.currentBoss.y;
             
-            // 根据攻击模式调整子弹行为
             let speedX, speedY;
             
             switch(game.currentBoss.attackPattern) {
                 case 'ice':
-                    // 冰弹：直线慢速
                     speedX = Math.sign(dx) || (Math.random() > 0.5 ? 1 : -1);
                     speedY = Math.sign(dy) || (Math.random() > 0.5 ? 1 : -1);
                     break;
-                default: // fire
-                    // 火焰弹：瞄准玩家
+                case 'thunder':
+                    // 雷电攻击：快速追踪
+                    speedX = Math.sign(dx) * 2;
+                    speedY = Math.sign(dy) * 2;
+                    break;
+                default:
                     speedX = Math.sign(dx) || 0;
                     speedY = Math.sign(dy) || 0;
             }
@@ -1204,11 +1553,9 @@
             for (let i = game.bossBullets.length - 1; i >= 0; i--) {
                 const bullet = game.bossBullets[i];
                 
-                // 移动子弹
                 bullet.x += bullet.speedX;
                 bullet.y += bullet.speedY;
                 
-                // 检查边界
                 if (bullet.x < 0 || bullet.x >= CONFIG.BOARD_COLS || 
                     bullet.y < 0 || bullet.y >= CONFIG.BOARD_ROWS) {
                     game.bossBullets.splice(i, 1);
@@ -1217,65 +1564,43 @@
             }
         }
 
-        // ========== 修复：Boss自动出现系统 ==========
+        // ========== 普通模式Boss自动出现 ==========
         function checkAutoBossSpawn() {
+            if (game.gameMode !== CONFIG.GAME_MODES.NORMAL) return;
             if (!game.isRunning || game.isPaused || game.currentBoss) return;
             
             const now = Date.now();
             
-            // 初始化下次出现时间
             if (game.nextBossSpawnTime === 0) {
                 scheduleNextBossSpawn();
                 startBossCountdown();
                 return;
             }
             
-            // 检查是否到了出现时间
             if (now >= game.nextBossSpawnTime) {
-                // 检查分数是否达标
-                if (game.score >= CONFIG.BOSS_AUTO_SPAWN.minScore) {
-                    // 随机决定是否出现
-                    if (Math.random() < CONFIG.BOSS_AUTO_SPAWN.chance) {
+                if (game.score >= 50) {
+                    if (Math.random() < 0.6) {
                         summonBossAuto();
                     } else {
-                        // 没出现，设置下次检查时间
                         scheduleNextBossSpawn();
                     }
                 } else {
-                    // 分数不够，推迟出现
-                    game.nextBossSpawnTime = now + 15000; // 15秒后再检查
+                    game.nextBossSpawnTime = now + 15000;
                 }
             }
             
-            // 更新倒计时显示
             updateBossCountdown();
         }
 
         function scheduleNextBossSpawn() {
             const now = Date.now();
             if (game.nextBossSpawnTime === 0) {
-                // 第一次出现：30秒后
-                game.nextBossSpawnTime = now + CONFIG.BOSS_AUTO_SPAWN.initialDelay;
+                game.nextBossSpawnTime = now + 30000;
             } else {
-                // 之后：每45秒一次
-                game.nextBossSpawnTime = now + CONFIG.BOSS_AUTO_SPAWN.interval;
+                game.nextBossSpawnTime = now + 45000;
             }
             
-            // 显示倒计时
             elements.bossTimer.style.display = 'block';
-        }
-
-        function summonBossAuto() {
-            if (game.currentBoss) return;
-            
-            showMessage("⚠️ Boss即将出现！准备战斗！", "warning");
-            
-            // 延迟1.5秒后出现，给玩家反应时间
-            setTimeout(() => {
-                if (!game.currentBoss && game.isRunning && !game.isPaused) {
-                    summonBoss();
-                }
-            }, 1500);
         }
 
         function startBossCountdown() {
@@ -1285,6 +1610,7 @@
         }
 
         function updateBossCountdown() {
+            if (game.gameMode !== CONFIG.GAME_MODES.NORMAL) return;
             if (!game.isRunning || game.currentBoss) return;
             
             const now = Date.now();
@@ -1294,7 +1620,6 @@
             if (elements.bossCountdown) {
                 elements.bossCountdown.textContent = secondsLeft;
                 
-                // 最后10秒变红色
                 if (secondsLeft <= 10) {
                     elements.bossCountdown.style.color = '#ff4757';
                 } else if (secondsLeft <= 30) {
@@ -1303,6 +1628,18 @@
                     elements.bossCountdown.style.color = '#4dff91';
                 }
             }
+        }
+
+        function summonBossAuto() {
+            if (game.currentBoss) return;
+            
+            showMessage("⚠️ Boss即将出现！准备战斗！", "warning");
+            
+            setTimeout(() => {
+                if (!game.currentBoss && game.isRunning && !game.isPaused) {
+                    summonBoss();
+                }
+            }, 1500);
         }
 
         // ========== 其他游戏系统 ==========
@@ -1316,7 +1653,7 @@
                     food = {
                         x: Math.floor(Math.random() * CONFIG.BOARD_COLS),
                         y: Math.floor(Math.random() * CONFIG.BOARD_ROWS),
-                        type: Math.random() < 0.2 ? 'gold' : 'normal'
+                        type: Math.random() < 0.15 ? 'gold' : 'normal'
                     };
                     
                     isValid = true;
@@ -1342,6 +1679,11 @@
                         }
                     }
                     
+                    // 检查是否在Boss上
+                    if (game.currentBoss && food.x === game.currentBoss.x && food.y === game.currentBoss.y) {
+                        isValid = false;
+                    }
+                    
                 } while (!isValid && attempts <= 50);
                 
                 if (isValid) {
@@ -1353,7 +1695,6 @@
         function spawnRandomElements() {
             if (!game.isRunning || game.isPaused) return;
             
-            // 随机生成食物
             if (Math.random() < 0.03 && game.foods.length < 12) {
                 generateFood(1);
             }
@@ -1366,7 +1707,6 @@
             }
         }
 
-        // ========== 修复渲染函数 - Boss不会污染棋盘 ==========
         function render() {
             // 清空所有格子的特殊类
             document.querySelectorAll('.cell').forEach(cell => {
@@ -1389,7 +1729,7 @@
                 }
             });
             
-            // 渲染Boss - 只在当前位置显示，不会污染棋盘
+            // 渲染Boss
             if (game.currentBoss) {
                 const cell = document.getElementById(`cell-${game.currentBoss.x}-${game.currentBoss.y}`);
                 if (cell) {
@@ -1453,21 +1793,18 @@
             }
             game.isRunning = false;
             
-            // 更新最高分
             if (game.score > game.highScore) {
                 game.highScore = game.score;
                 localStorage.setItem('snakeHighScore', game.highScore);
             }
             
-            // 显示游戏结束画面
             elements.finalScore.textContent = game.score;
             elements.bossDefeated.textContent = game.bossesDefeated;
+            elements.finalLevel.textContent = game.currentLevel;
             elements.finalCombo.textContent = game.combo;
             elements.gameOver.style.display = 'flex';
             
             elements.startBtn.textContent = '开始游戏';
-            
-            console.log("游戏结束，分数:", game.score, "击败Boss:", game.bossesDefeated);
         }
 
         // ========== 输入处理 ==========
@@ -1503,6 +1840,11 @@
                 case 'B':
                     summonBoss();
                     break;
+                case 'm':
+                case 'M':
+                    // 切换模式快捷键
+                    setGameMode(game.gameMode === CONFIG.GAME_MODES.NORMAL ? CONFIG.GAME_MODES.LEVEL : CONFIG.GAME_MODES.NORMAL);
+                    break;
             }
         }
 
@@ -1518,6 +1860,16 @@
             // Boss信息
             updateBossDisplay();
             
+            // 关卡模式信息
+            if (game.gameMode === CONFIG.GAME_MODES.LEVEL) {
+                const progressPercent = (game.foodsEaten / game.foodsToNextLevel) * 100;
+                elements.foodsCounter.textContent = `${game.foodsEaten}/${game.foodsToNextLevel}`;
+                elements.foodsProgressBar.style.width = `${progressPercent}%`;
+                
+                elements.currentLevel.textContent = game.currentLevel;
+                elements.levelProgress.textContent = `${game.foodsEaten}/${game.foodsToNextLevel}`;
+            }
+            
             // 难度更新
             updateGameSpeed();
         }
@@ -1528,7 +1880,6 @@
                 elements.bossHealth.textContent = `${game.currentBoss.health}/${game.currentBoss.maxHealth}`;
                 elements.bossHealthBar.style.width = `${(game.currentBoss.health / game.currentBoss.maxHealth) * 100}%`;
                 
-                // 根据血量改变阶段
                 const healthPercent = game.currentBoss.health / game.currentBoss.maxHealth;
                 let phase = "狂暴阶段";
                 if (healthPercent > 0.66) phase = "第一阶段";
@@ -1564,12 +1915,10 @@
             
             elements.messageContainer.appendChild(message);
             
-            // 限制消息数量
             while (elements.messageContainer.children.length > 5) {
                 elements.messageContainer.removeChild(elements.messageContainer.firstChild);
             }
             
-            // 自动移除
             setTimeout(() => {
                 if (message.parentNode) {
                     message.style.opacity = '0';
@@ -1585,7 +1934,6 @@
         // ========== 启动游戏 ==========
         document.addEventListener('DOMContentLoaded', init);
         
-        // 导出全局函数
         window.restartGame = restartGame;
     </script>
 </body>
